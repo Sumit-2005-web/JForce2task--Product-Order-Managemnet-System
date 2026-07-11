@@ -1,0 +1,114 @@
+package com.Ecommerce.Impl;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.Ecommerce.Entity.Cart;
+import com.Ecommerce.Entity.CartItem;
+import com.Ecommerce.Entity.Order;
+import com.Ecommerce.Entity.OrderItem;
+import com.Ecommerce.Entity.Product;
+import com.Ecommerce.Entity.User;
+import com.Ecommerce.Exception.InsufficientStockException;
+import com.Ecommerce.Exception.ResourceNotFoundException;
+import com.Ecommerce.Repository.CartItemRepository;
+import com.Ecommerce.Repository.CartRepository;
+import com.Ecommerce.Repository.OrderRepository;
+import com.Ecommerce.Repository.ProductRepository;
+import com.Ecommerce.Repository.UserRepository;
+import com.Ecommerce.Service.OrderService;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class OrderServiceImpl implements OrderService {
+
+    private final UserRepository userRepository;
+    private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
+    private final ProductRepository productRepository;
+    private final OrderRepository orderRepository;
+
+    @Override
+    @Transactional
+    public Order placeOrder(Long userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User Not Found"));
+
+        Cart cart = cartRepository.findByUser(user)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Cart Not Found"));
+
+        if (cart.getCartItems().isEmpty()) {
+            throw new ResourceNotFoundException("Cart is Empty");
+        }
+
+        Order order = new Order();
+
+        order.setUser(user);
+        order.setOrderDate(LocalDateTime.now());
+
+        List<OrderItem> orderItems = new ArrayList<>();
+
+        double total = 0;
+
+        for (CartItem cartItem : cart.getCartItems()) {
+
+            Product product = cartItem.getProduct();
+
+            if (product.getQuantity() < cartItem.getQuantity()) {
+                throw new InsufficientStockException(
+                        product.getName() + " has only "
+                                + product.getQuantity() + " items available."
+                );
+            }
+
+            product.setQuantity(
+                    product.getQuantity() - cartItem.getQuantity()
+            );
+
+            productRepository.save(product);
+
+            OrderItem orderItem = new OrderItem();
+
+            orderItem.setOrder(order);
+            orderItem.setProduct(product);
+            orderItem.setQuantity(cartItem.getQuantity());
+            orderItem.setPrice(product.getPrice());
+
+            orderItems.add(orderItem);
+
+            total += product.getPrice() * cartItem.getQuantity();
+        }
+
+        order.setTotalAmount(total);
+        order.setOrderItems(orderItems);
+
+        Order savedOrder = orderRepository.save(order);
+
+        cartItemRepository.deleteAll(cart.getCartItems());
+
+        cart.getCartItems().clear();
+
+        cartRepository.save(cart);
+
+        return savedOrder;
+    }
+
+    @Override
+    public List<Order> getOrders(Long userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User Not Found"));
+
+        return orderRepository.findByUser(user);
+    }
+
+}

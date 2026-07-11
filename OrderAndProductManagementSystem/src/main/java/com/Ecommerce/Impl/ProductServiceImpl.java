@@ -1,0 +1,107 @@
+package com.Ecommerce.Impl;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.Ecommerce.Entity.Product;
+import com.Ecommerce.Exception.ResourceNotFoundException;
+import com.Ecommerce.Repository.ProductRepository;
+import com.Ecommerce.Service.ProductService;
+import com.Ecommerce.dto.ProductDTO;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class ProductServiceImpl implements ProductService {
+
+    private final ProductRepository productRepository;
+
+    @Override
+    public Product save(ProductDTO dto) {
+
+        Product product = new Product();
+
+        product.setName(dto.getName());
+        product.setDescription(dto.getDescription());
+        product.setPrice(dto.getPrice());
+        product.setQuantity(dto.getQuantity());
+        product.setEnabled(true);
+
+        return productRepository.save(product);
+    }
+
+//    @Override
+//    public Product update(Long id, ProductDTO dto) {
+//
+//        Product product = productRepository.findById(id).orElseThrow(() -> 
+//        new ResourceNotFoundException("Product Not Found"));
+//
+//        product.setName(dto.getName());
+//        product.setDescription(dto.getDescription());
+//        product.setPrice(dto.getPrice());
+//        product.setQuantity(dto.getQuantity());
+//
+//        return productRepository.save(product);
+//    }
+
+    @Override
+    public void disable(Long id) {
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Product Not Found"));
+
+        product.setEnabled(false);
+
+        productRepository.save(product);
+    }
+
+    @Override
+    public void enable(Long id) {
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Product Not Found"));
+
+        product.setEnabled(true);
+
+        productRepository.save(product);
+    }
+
+    @Override
+    public List<Product> getAllProducts() {
+
+        return productRepository.findAll();
+    }
+
+    @Override
+    public List<Product> getAvailableProducts() {
+
+        return productRepository.findByEnabledTrue();
+    }
+
+    @Override
+    public Product getById(Long id) {
+
+        return productRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Product Not Found"));
+    }
+    
+    @Override
+    public Product update(Long id, Product updatedProduct) {
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Product Not Found"));
+
+        product.setName(updatedProduct.getName());
+        product.setDescription(updatedProduct.getDescription());
+        product.setPrice(updatedProduct.getPrice());
+        product.setQuantity(updatedProduct.getQuantity());
+
+        return productRepository.save(product);
+    }
+}
